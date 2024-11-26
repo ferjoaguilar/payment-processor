@@ -100,7 +100,6 @@ class PaymentService{
             return;
         }
     }
-
 }
 
 $paymentWithEmail = [
