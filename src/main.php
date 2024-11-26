@@ -1,40 +1,35 @@
 <?php
 require_once 'vendor/autoload.php';
 
-class PaymentProcessor
+
+class CustomerValidator
 {
-    public function processTransaction($customerData, $paymentData)
-    {
+    public function validate($customerData){
         if ($customerData['name'] == ''){
-            echo 'Customer name is required';
+            die ('Customer name is required');
             return;
         }
 
         if($customerData['contact_info'] == ''){
-            echo 'Customer contact info is required';
+            die ('Customer contact info is required');
             return;
         }
+    }
+}
 
+class PaymentDataValidator
+{
+    public function validate($paymentData){
         if ($paymentData['source'] == ''){
-            echo 'Payment source is required';
+            die('Payment source is required');
             return;
         }
+    }
+}
 
-        $stripe = new \Stripe\StripeClient('MY_SECRET_KEY');
-
-        try{
-            $charge = $stripe->charges->create([
-                'amount' => $paymentData['amount'],
-                'currency' => 'usd',
-                'source' => $paymentData['source'],
-                'description' => 'My First Test Charge (created for API docs)',
-            ]);
-        }
-        catch (Exception $e){
-            echo 'Payment failed';
-            return;
-        }
-
+class Notifier
+{
+    public function sendConfirmation($customerData){
         if (array_key_exists('email', $customerData['contact_info'])){
             $email = $customerData['contact_info']['email'];
             $subject = 'Payment Successful';
@@ -51,11 +46,61 @@ class PaymentProcessor
             echo 'No valid contact information for notification';
             return;
         }
+    }
+}
 
+class TransactionLogger{
+    public function logTransaction($charge, $customerData){
         $transactionDetails = 'Transaction ID: '. $charge->id. ' Amount: '. $charge->amount. ' Status: '. $charge->status . ' Customer Name: '. $customerData['name']. PHP_EOL;
         file_put_contents('transaction.txt', $transactionDetails, FILE_APPEND);
-
     }
+}
+
+
+class PaymentService{
+    private $customerValidator;
+    private $paymentDataValidator;
+    private $notifier;
+    private $transactionLogger;
+
+    public function __construct()
+    {
+        $this->customerValidator = new CustomerValidator();
+        $this->paymentDataValidator = new PaymentDataValidator();
+        $this->notifier = new Notifier();
+        $this->transactionLogger = new TransactionLogger();
+    }
+
+    public function processTransaction($customerData, $paymentData){
+        try{
+            $this->customerValidator->validate($customerData);
+            $this->paymentDataValidator->validate($paymentData);
+        }
+        catch (Exception $e){
+            echo 'Validation failed' . $e->getMessage();
+            return;
+        }
+
+        $stripe = new \Stripe\StripeClient('sk_test_51QLGoBGPaAS5c1AcKxfJICZ651I3A9fDHGWX7bkceKI9qJIcj9xZtH7BbbZYr2bfUxwxJIgsYj6GpGUKeZHqNyOU00j7Aj5v3k');
+
+        try{
+            $charge = $stripe->charges->create([
+                'amount' => $paymentData['amount'],
+                'currency' => 'usd',
+                'source' => $paymentData['source'],
+                'description' => 'Testing solid principles',
+            ]);
+
+            $this->notifier->sendConfirmation($customerData);
+            $this->transactionLogger->logTransaction($charge, $customerData);
+            return $charge;
+        }
+        catch (Exception $e){
+            echo 'Payment failed' . $e->getMessage();
+            return;
+        }
+    }
+
 }
 
 $paymentWithEmail = [
@@ -77,7 +122,7 @@ $paymentData = [
     'source' => 'tok_visa'
 ];
 
-$processor = new PaymentProcessor();
+$processor = new PaymentService();
 $processor->processTransaction($paymentWithEmail, $paymentData);
 $processor->processTransaction($paymentWithPhone, $paymentData);
 ?>
