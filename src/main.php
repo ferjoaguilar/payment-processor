@@ -20,7 +20,7 @@ class PaymentProcessor
             return;
         }
 
-        $stripe = new \Stripe\StripeClient('sk_test_51QLGoBGPaAS5c1AcKxfJICZ651I3A9fDHGWX7bkceKI9qJIcj9xZtH7BbbZYr2bfUxwxJIgsYj6GpGUKeZHqNyOU00j7Aj5v3k');
+        $stripe = new \Stripe\StripeClient('MY_SECRET_KEY');
 
         try{
             $charge = $stripe->charges->create([
